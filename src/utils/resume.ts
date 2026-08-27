@@ -15,6 +15,7 @@ import {
 } from './forward-flags.js';
 import { extractContext, saveContext } from './index.js';
 import { getSourceLabels, safePath } from './markdown.js';
+import { homeDir } from './parser-helpers.js';
 import { IS_WINDOWS, WHICH_CMD } from './platform.js';
 
 export interface HandoffContextOptions {
@@ -299,6 +300,13 @@ function runCommand(command: string, args: string[], cwd: string, stdinData?: st
  * Check if a CLI tool is available by binary name
  */
 async function isBinaryAvailable(binaryName: string): Promise<boolean> {
+  if (path.isAbsolute(binaryName)) {
+    return fs.promises.access(binaryName, fs.constants.X_OK).then(
+      () => true,
+      () => false,
+    );
+  }
+
   return new Promise((resolve) => {
     const child = spawn(WHICH_CMD, [binaryName], { stdio: 'ignore' });
     child.on('close', (code) => resolve(code === 0));
@@ -312,6 +320,9 @@ export async function resolveToolBinaryName(
 ): Promise<string | null> {
   for (const candidate of getToolBinaryCandidates(tool)) {
     if (await isAvailable(candidate)) return candidate;
+
+    const userLocalCandidate = path.join(homeDir(), '.local', 'bin', candidate);
+    if (await isAvailable(userLocalCandidate)) return userLocalCandidate;
   }
   return null;
 }

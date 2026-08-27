@@ -197,6 +197,18 @@ Every tool stores sessions differently — different formats, different schemas,
 
 All reads are **read-only** — `continues` never modifies your session files. Index cached at `~/.continues/sessions.jsonl` (5-min TTL, auto-refresh).
 
+### AGY CLI and Antigravity
+
+Antigravity session extraction and AGY process launching are deliberately
+separate. Sessions keep the canonical source name `antigravity`, while native
+resume and cross-tool handoff use the `agy` CLI (`--conversation` and
+`--prompt-interactive`). `continues` discovers `agy` on `PATH` or directly at
+`~/.local/bin/agy`, then falls back to the legacy `antigravity` command.
+
+See [AGY and Antigravity integration](docs/agy-integration.md) for the exact
+search order, forwarded flag mapping, storage paths, live-RPC behavior, and
+troubleshooting commands.
+
 ### Tool activity in handoffs
 
 The handoff document includes a **Tool Activity** section so the target agent knows what was *done*, not just what was *said*:

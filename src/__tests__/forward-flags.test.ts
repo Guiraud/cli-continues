@@ -126,6 +126,36 @@ describe('cross-tool forwarding', () => {
     expect(resolved.passthroughArgs).toEqual([]);
   });
 
+  it('maps generic handoff flags to the AGY CLI contract', () => {
+    const resolved = resolveCrossToolForwarding('antigravity', {
+      rawArgs: [
+        '--yolo',
+        '--plan',
+        '--sandbox',
+        '--model',
+        'gemini-2.5-pro',
+        '--agent',
+        'coding',
+        '--add-dir',
+        '/tmp/shared',
+      ],
+    });
+
+    expect(resolved.mappedArgs).toEqual([
+      '--dangerously-skip-permissions',
+      '--mode',
+      'plan',
+      '--sandbox',
+      '--model',
+      'gemini-2.5-pro',
+      '--agent',
+      'coding',
+      '--add-dir',
+      '/tmp/shared',
+    ]);
+    expect(resolved.passthroughArgs).toEqual([]);
+  });
+
   it('consumes unsupported approval and permission forwarding for opencode', () => {
     const resolved = resolveCrossToolForwarding('opencode', {
       rawArgs: ['--approval-mode', 'plan', '--permission-mode', 'plan'],

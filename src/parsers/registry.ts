@@ -209,6 +209,69 @@ function mapGeminiFlags(context: ForwardFlagMapContext): ForwardMapResult {
   return { mappedArgs: args };
 }
 
+function mapAntigravityFlags(context: ForwardFlagMapContext): ForwardMapResult {
+  const args: string[] = [];
+  const warnings: string[] = [];
+
+  const autoOccurrences = collectAutoApproveOccurrences(context);
+  const fullAutoOccurrences = context.all('fullAuto');
+  const approvalYoloOccurrences = context
+    .all('approvalMode')
+    .filter((occurrence) => String(occurrence.value).toLowerCase() === 'yolo');
+  const askNeverOccurrences = context
+    .all('askForApproval')
+    .filter((occurrence) => String(occurrence.value).toLowerCase() === 'never');
+
+  if (
+    autoOccurrences.length > 0 ||
+    fullAutoOccurrences.length > 0 ||
+    approvalYoloOccurrences.length > 0 ||
+    askNeverOccurrences.length > 0
+  ) {
+    context.consume(...autoOccurrences, ...fullAutoOccurrences, ...approvalYoloOccurrences, ...askNeverOccurrences);
+    args.push('--dangerously-skip-permissions');
+  }
+
+  const explicitMode = context.latestString('mode');
+  const planOccurrences = normalizePlanOccurrences(context);
+  if (explicitMode) {
+    context.consumeKeys('mode');
+    context.consume(...planOccurrences);
+    args.push('--mode', explicitMode);
+  } else if (planOccurrences.length > 0) {
+    context.consume(...planOccurrences);
+    args.push('--mode', 'plan');
+  }
+
+  if (context.consumeAnyBoolean('sandbox')) {
+    args.push('--sandbox');
+  }
+
+  const model = context.latestString('model');
+  if (model) {
+    context.consumeKeys('model');
+    args.push('--model', model);
+  }
+
+  const agent = context.latestString('agent');
+  if (agent) {
+    context.consumeKeys('agent');
+    args.push('--agent', agent);
+  }
+
+  for (const directory of context.consumeAllCsvStrings('addDir', 'includeDirectories')) {
+    args.push('--add-dir', directory);
+  }
+
+  const unsupportedApprovalOccurrences = context.all('askForApproval', 'approvalMode', 'permissionMode', 'fullAuto');
+  if (unsupportedApprovalOccurrences.length > 0) {
+    context.consume(...unsupportedApprovalOccurrences);
+    warnings.push('AGY: unsupported approval flags were ignored.');
+  }
+
+  return { mappedArgs: args, warnings };
+}
+
 function mapClaudeFlags(context: ForwardFlagMapContext): ForwardMapResult {
   const args: string[] = [];
   const warnings: string[] = [];
@@ -893,12 +956,14 @@ register({
   // Antigravity's parser falls back to GEMINI_CLI_HOME when ANTIGRAVITY_HOME
   // is unset, so changes to that var must also invalidate the index cache.
   extraEnvVars: ['GEMINI_CLI_HOME', 'ANTIGRAVITY_STATE_DB'],
-  binaryName: 'antigravity',
+  binaryName: 'agy',
+  binaryFallbacks: ['antigravity'],
   parseSessions: parseAntigravitySessions,
   extractContext: extractAntigravityContext,
-  nativeResumeArgs: () => [],
-  crossToolArgs: (prompt) => [prompt],
-  resumeCommandDisplay: () => `antigravity`,
+  nativeResumeArgs: (session) => ['--conversation', session.id],
+  crossToolArgs: (prompt) => ['--prompt-interactive', prompt],
+  resumeCommandDisplay: (session) => `agy --conversation ${session.id}`,
+  mapHandoffFlags: mapAntigravityFlags,
 });
 
 // ── Kimi CLI ──────────────────────────────────────────────────────────
